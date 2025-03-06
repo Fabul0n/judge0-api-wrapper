@@ -1,2 +1,7 @@
-# judge0-api-wrapper
-Some functions for convenience while working with judge0
+# Judge0-API-wrapper
+
+Обёртка для API сервиса Judge0.
+
+## Установка
+```bash
+pip install judge0-api-wrapper
