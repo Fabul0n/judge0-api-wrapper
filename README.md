@@ -2,6 +2,6 @@
 
 API wrapper for Judge0.
 
-## Установка
+## Installation
 ```bash
 pip install judge0-api-wrapper
