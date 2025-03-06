@@ -10,13 +10,13 @@ setup(
     description='API wrapper for Judge0 service',
     long_description=(HERE / "README.md").read_text(),
     long_description_content_type='text/markdown',
-    author='Fabul0n',  # Например: 'your_github_username'
-    author_email='fabulon@mail.ru',  # Опционально
-    url='https://github.com/Fabul0n/judge0-api-wrapper',  # Ссылка на репозиторий
-    packages=find_packages(),    # Автоматически находит пакеты
-    install_requires=REQUIRED,   # Зависимости из requirements.txt
-    license='MIT',               # Указание лицензии
-    classifiers=[                # Классификаторы для PyPI
+    author='Fabul0n',
+    author_email='fabulon@mail.ru',
+    url='https://github.com/Fabul0n/judge0-api-wrapper',
+    packages=find_packages(),
+    install_requires=REQUIRED,
+    license='MIT',
+    classifiers=[
         'Development Status :: 3 - Alpha',
         'License :: OSI Approved :: MIT License',
         'Programming Language :: Python :: 3',
