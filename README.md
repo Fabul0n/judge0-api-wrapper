@@ -1,6 +1,6 @@
 # Judge0-API-wrapper
 
-Обёртка для API сервиса Judge0.
+API wrapper for Judge0.
 
 ## Установка
 ```bash
