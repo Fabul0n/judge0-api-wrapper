@@ -5,7 +5,7 @@ HERE = pathlib.Path(__file__).parent.resolve()
 REQUIRED = (HERE / "requirements.txt").read_text().splitlines()
 
 setup(
-    name='judge0-api-wrapper',
+    name='judge0_api_wrapper',
     version='1.0.2',
     description='API wrapper for Judge0 service',
     long_description=(HERE / "README.md").read_text(),
