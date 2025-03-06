@@ -1,6 +1,6 @@
 import requests
 from furl import furl
-from exceptions import *
+from .exceptions import *
 import time
 
 class Judge0:
