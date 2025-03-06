@@ -6,7 +6,7 @@ REQUIRED = (HERE / "requirements.txt").read_text().splitlines()
 
 setup(
     name='judge0-api-wrapper',
-    version='1.0.0',
+    version='1.0.1',
     description='API wrapper for Judge0 service',
     long_description=(HERE / "README.md").read_text(),
     long_description_content_type='text/markdown',
