@@ -30,7 +30,7 @@ class Judge0:
         "The method returns a dict of available languages"
         return self.__languages
 
-    def submit_code(self, source_code: str, language_id: int, stdin: str | None = None, compile_timeout: int | None = None, run_timeout: int | None = None, check_timeout: int | None = None):
+    def submit_code(self, source_code: str, language_id: int, stdin: str | None = None, compile_timeout: int | None = None, run_timeout: int | None = None, check_timeout: int | None = None, memory_limit: int | None = None, base64_encoded: bool = True):
         if self.languages.get(language_id) is None:
             raise LanguageNotFound('Unknown language id. Use languages property to get a dict of available languages')
         
@@ -38,7 +38,7 @@ class Judge0:
             'source_code': source_code,
             'language_id': language_id
         }
-
+        #print(self.__session.get('http://5.35.80.93:2358/config_info').json())
         if stdin is not None:
             data['stdin'] = stdin
         if compile_timeout:
@@ -47,63 +47,37 @@ class Judge0:
             data['run_timeout'] = run_timeout
         if check_timeout:
             data['check_timeout'] = check_timeout
+        if memory_limit:
+            data['memory_limit'] = memory_limit * 1000 # minimal value is 2048
 
-        response = self.__session.post(self.__judge0_ip / 'submissions', json=data)
+        response = self.__session.post(self.__judge0_ip / 'submissions', json=data, params={'base64_encoded': "true" if base64_encoded else "false"})
         response.raise_for_status()
-        submission_data = response.json()
-        return Submission(self, submission_data)
+        token = response.json().get('token')
+        return token
     
     def submit_file(self, source_code: str, language_id: int, stdin: str | None = None, compile_timeout: int | None = None, run_timeout: int | None = None, check_timeout: int | None = None):
         raise NotImplementedError
 
-    def get_info(self, submission_token: str):
-        response = self.__session.get(self.__judge0_ip / 'submissions' / submission_token)
+    def get_info(self, token: str):
+        response = self.__session.get(self.__judge0_ip / 'submissions' / token)
         response.raise_for_status()
         return response.json()
     
-    def get_status(self, submission: 'Submission'):
-        response = self.__session.get(self.__judge0_ip / 'submissions' / submission.token)
+    def get_status(self, token: str) -> dict[int, str]:
+        response = self.__session.get(self.__judge0_ip / 'submissions' / token)
         response.raise_for_status()
-        return response.json().get('status').get('description')
-
-
-class Submission:
-    def __init__(self, judge0: Judge0, data: dict):
-        self.__judge0 = judge0
-        self.__token = data.get('token')
-        self.__status: dict = data.get('status')
-        self.__memory = data.get('memory')
-        self.__time = data.get('time')
-        self.__compile_output = data.get('compile_output')
-        self.__stdout = None
-        self.__stderr = None
-        self.__message = data.get('message')
-
-    def refresh(self):
-        data: dict = self.__judge0.get_info(self.__token)
-        self.__status = data.get('status')
-        self.__memory = data.get('memory')
-        self.__time = data.get('time')
-        self.__compile_output = data.get('compile_output')
-        self.__message = data.get('message')
-        self.__stdout = data.get('stdout')
-        self.__stderr = data.get('stderr')
-
-    def get_result(self):
-        self.refresh()
-        if self.__status.get('id') in [1, 2]:
-            raise NotProcessed
-        data = self.__judge0.get_info(self.__token)
-        return data
-
-    def wait_for_completion(self, poll_interval: int = 1):
+        return response.json().get('status')
+    
+    def wait_for_completion(self, token: str, poll_interval: int = 1):
         while 1:
-            self.refresh()
-            if self.__status.get('id') in [1, 2]:
+            if self.get_status(token).get('id') in [1, 2]:
                 time.sleep(poll_interval)
                 continue
             break
-
-    @property
-    def token(self):
-        return self.__token
+    
+    def get_result(self, token: str, wait: bool = False, poll_interval: int = 1):
+        if wait:
+            self.wait_for_completion(token, poll_interval)
+        if self.get_status(token).get('id') in [1, 2]:
+            raise NotProcessed
+        return self.get_info(token)
