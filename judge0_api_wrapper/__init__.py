@@ -1,6 +1,6 @@
-__all__ = ['Judge0', 'CodeSubmission', 'LanguageNotFound', 'NotProcessed', 'Status']
+__all__ = ['Judge0', 'Submission', 'SubmissionResult', 'CreateSubmission', 'LanguageNotFound', 'Status']
 
 from .judge0 import Judge0
-from .exceptions import LanguageNotFound, NotProcessed
-from .schemas import CodeSubmission
+from .schemas import Submission, SubmissionResult, CreateSubmission
+from .exceptions import LanguageNotFound
 from .custom_types import Status

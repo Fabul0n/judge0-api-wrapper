@@ -5,7 +5,7 @@ import requests
 from furl import furl
 
 from .exceptions import LanguageNotFound
-from .schemas import CodeSubmission
+from .schemas import Submission, SubmissionResult, CreateSubmission
 from .custom_types import Status
 
 class Judge0:
@@ -53,16 +53,16 @@ class Judge0:
 
     def __base64_encode(
         self, 
-        submission: CodeSubmission
-    ) -> CodeSubmission:
+        create_submission: CreateSubmission
+    ) -> CreateSubmission:
         ''' Encodes all string fields in submission with base64
         '''
-        new_submission = submission.model_copy()
-        new_submission.source_code = base64.b64encode(submission.source_code.encode()).decode()
-        if submission.stdin:
-            new_submission.stdin = base64.b64encode(submission.stdin.encode()).decode()
-        if submission.expected_output:
-            new_submission.expected_output = base64.b64encode(submission.expected_output.encode()).decode()
+        new_submission = create_submission.model_copy()
+        new_submission.source_code = base64.b64encode(create_submission.source_code.encode()).decode()
+        if create_submission.stdin:
+            new_submission.stdin = base64.b64encode(create_submission.stdin.encode()).decode()
+        if create_submission.expected_output:
+            new_submission.expected_output = base64.b64encode(create_submission.expected_output.encode()).decode()
         return new_submission
 
     @property
@@ -79,34 +79,34 @@ class Judge0:
 
     def submit(
         self, 
-        submission: CodeSubmission, 
+        create_submission: CreateSubmission, 
         encode_in_base64: bool = True
-    ) -> str:
+    ) -> Submission:
         '''Creates new submission
 
         Parameters
         ----------
-        submission : CodeSubmission
+        submission : CreateSubmission
             A submission to create. All str type fields must be plain
         encode_in_base64 : bool
             Whether to encode submission in base64
 
         Returns
         -------
-        str
-            A token for the created submission
+        Submission
+            Created submission
 
         Raises
         ------
         LanguageNotFound
         '''
-        if self.languages.get(submission.language_id) is None:
+        if self.languages.get(create_submission.language_id) is None:
             raise LanguageNotFound('Unknown language id. Use languages property to get a dict of available languages')
         
         if encode_in_base64:
-            submission = self.__base64_encode(submission)
+            create_submission = self.__base64_encode(create_submission)
 
-        data = submission.model_dump(exclude_none=True)
+        data = create_submission.model_dump(exclude_none=True, exclude='date')
 
         response = self.__session.post(
             self.__judge0_ip / 'submissions', 
@@ -116,39 +116,42 @@ class Judge0:
         response.raise_for_status()
 
         token: str = response.json().get('token')
-        return token
+        submission = Submission(
+            **data, token=token
+        )
+        return submission
     
     def submit_batch(
         self, 
-        submissions: list[CodeSubmission],
+        create_submissions: list[CreateSubmission],
         encode_in_base64: bool = True
-    ) -> list[str]:
+    ) -> list[Submission]:
         '''Creates new submissions
 
         Parameters
         ----------
-        submissions : list[CodeSubmission]
+        create_submissions : list[CreateSubmission]
             Submissions to create. All str type fields must be plain
         encode_in_base64 : bool
             Whether to encode submissions in base64
 
         Returns
         -------
-        list[str]
+        list[Submission]
             Tokens for the created submissions
 
         Raises
         ------
         LanguageNotFound
         '''
-        for submission in submissions:
-            if self.languages.get(submission.language_id) is None:
+        for create_submission in create_submissions:
+            if self.languages.get(create_submission.language_id) is None:
                 raise LanguageNotFound('Unknown language id. Use languages property to get a dict of available languages')
         
         if encode_in_base64:
-            submissions = [self.__base64_encode(submission) for submission in submissions]
+            create_submissions = [self.__base64_encode(create_submission) for create_submission in create_submissions]
 
-        batch_data = [submission.model_dump(exclude_none=True) for submission in submissions]
+        batch_data = [create_submission.model_dump(exclude_none=True, exclude='date') for create_submission in create_submissions]
 
         response = self.__session.post(
             self.__judge0_ip / 'submissions/batch',
@@ -158,7 +161,10 @@ class Judge0:
         response.raise_for_status()
 
         tokens = [item['token'] for item in response.json()]
-        return tokens
+        submissions = [Submission(
+            **data, token=token
+        ) for data, token in zip(batch_data, tokens)]
+        return submissions
 
     def __get_info(
         self, 
@@ -172,43 +178,51 @@ class Judge0:
     
     def get_status(
         self, 
-        token: str
+        submission: Submission
     ) -> Status:
-        '''Returns current status of a sumbmission by its token
+        '''Returns current status of a sumbmission
         '''
-        body: dict = self.__get_info(token)
+        body: dict = self.__get_info(submission.token)
         return Status(body.get('status').get('id'))
     
     def get_statuses(
         self,
-        tokens: list[str]
+        submissions: list[Submission]
     ) -> list[Status]:
         ''' Docstring to write
         '''
-        return [self.get_status(token) for token in tokens]
+        return [self.get_status(submission) for submission in submissions]
     
     def wait_for_completion(
         self, 
-        token: str, 
+        submission: Submission, 
         poll_interval: int = 1
-    ) -> Status:
-        ''' Waits for a submission to complete and returns its final status
+    ) -> SubmissionResult:
+        ''' Waits for a submission to complete and returns its result
         '''
         while 1:
-            status = self.get_status(token)
+            status = self.get_status(submission)
             if status in [Status.IN_QUEUE, Status.PROCESSING]:
                 time.sleep(poll_interval)
                 continue
-            return status
+            info: dict = self.__get_info(submission.token)
+            return SubmissionResult(
+                source_code=submission.source_code,
+                language_id=submission.language_id,
+                result=status,
+                time=info.get('time'),
+                memory=info.get('memory'),
+                date=submission.date
+            )
         
     def wait_for_completions(
         self,
-        tokens: list[str],
+        submissions: list[Submission],
         poll_interval: int = 1
-    ) -> list[Status]:
+    ) -> list[SubmissionResult]:
         ''' Docstring to write
         '''
-        statuses = []
-        for token in tokens:
-            statuses.append(self.wait_for_completion(token, poll_interval))
-        return statuses
+        submission_results = []
+        for submission in submissions:
+            submission_results.append(self.wait_for_completion(submission, poll_interval))
+        return submission_results
