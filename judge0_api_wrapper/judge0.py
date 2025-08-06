@@ -210,6 +210,7 @@ class Judge0:
                 source_code=submission.source_code,
                 language_id=submission.language_id,
                 result=status,
+                stdout=info.get('stdout'),
                 time=info.get('time'),
                 memory=info.get('memory'),
                 date=submission.date

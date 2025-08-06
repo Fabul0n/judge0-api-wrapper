@@ -20,6 +20,7 @@ class SubmissionResult(BaseModel):
     source_code: str
     language_id: int
     result: Status
+    stdout: str
     time: float | None = None
     memory: int | None = None # In kilobytes
     date: datetime = datetime.now()
