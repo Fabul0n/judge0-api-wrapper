@@ -123,14 +123,14 @@ class Judge0:
     
     def submit_batch(
         self, 
-        create_submissions: list[CreateSubmission],
+        batch: list[CreateSubmission],
         encode_in_base64: bool = True
     ) -> list[Submission]:
         '''Creates new submissions
 
         Parameters
         ----------
-        create_submissions : list[CreateSubmission]
+        batch : list[CreateSubmission]
             Submissions to create. All str type fields must be plain
         encode_in_base64 : bool
             Whether to encode submissions in base64
@@ -144,14 +144,14 @@ class Judge0:
         ------
         LanguageNotFound
         '''
-        for create_submission in create_submissions:
+        for create_submission in batch:
             if self.languages.get(create_submission.language_id) is None:
                 raise LanguageNotFound('Unknown language id. Use languages property to get a dict of available languages')
         
         if encode_in_base64:
-            create_submissions = [self.__base64_encode(create_submission) for create_submission in create_submissions]
+            batch = [self.__base64_encode(create_submission) for create_submission in batch]
 
-        batch_data = [create_submission.model_dump(exclude_none=True, exclude='date') for create_submission in create_submissions]
+        batch_data = [create_submission.model_dump(exclude_none=True, exclude='date') for create_submission in batch]
 
         response = self.__session.post(
             self.__judge0_ip / 'submissions/batch',
@@ -193,6 +193,32 @@ class Judge0:
         '''
         return [self.get_status(submission) for submission in submissions]
     
+    def get_result(
+        self,
+        submission: Submission
+    ) -> SubmissionResult:
+        ''' Returns submission result
+        '''
+        status = self.get_status(submission)
+        info: dict = self.__get_info(submission.token)
+        return SubmissionResult(
+            source_code=submission.source_code,
+            language_id=submission.language_id,
+            result=status,
+            stdout='' if info.get('stdout') is None else info.get('stdout'),
+            time=info.get('time'),
+            memory=info.get('memory'),
+            date=submission.date
+        )
+    
+    def get_results(
+        self,
+        submissions: list[Submission]
+    ) -> list[SubmissionResult]:
+        ''' Returns submissions result
+        '''
+        return [self.get_result(submission) for submission in submissions]
+
     def wait_for_completion(
         self, 
         submission: Submission, 
